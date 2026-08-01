@@ -35,6 +35,20 @@ Understand how to build modular, safe, and highly semantic functions ("Skills") 
 
 ---
 
+## Repository Dashboard & Statistics
+
+This table is dynamically generated to display the live count of resources in this project:
+
+<!-- STATS_START -->
+| Component | Directory | Count |
+| --- | --- | --- |
+| 🔌 **MCP Servers** | `MCP/servers/` | **2** |
+| 🧠 **AI Agents** | `AI Agents/agents/` | **2** |
+| 📝 **Prompts & Templates** | `Prompts/templates/` | **2** |
+<!-- STATS_END -->
+
+---
+
 ## Core Concepts to Get Started
 
 ### 1. Connecting Context and Action

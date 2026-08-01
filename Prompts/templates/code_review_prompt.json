@@ -1,0 +1,12 @@
+{
+  "name": "code_review",
+  "description": "A structured prompt for performing code reviews.",
+  "arguments": [
+    {
+      "name": "code",
+      "description": "The code block to review.",
+      "required": true
+    }
+  ],
+  "template": "Please review the following code for bugs, architectural issues, and readability:\n\n{code}"
+}
