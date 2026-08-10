@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-slate-950 text-slate-100">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>API Search - Intelligent Developer Hub</title>
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          },
+          colors: {
+            brand: {
+              50: '#eef2ff',
+              100: '#e0e7ff',
+              200: '#c7d2fe',
+              500: '#6366f1',
+              600: '#4f46e5',
+              700: '#4338ca',
+              900: '#312e81',
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+
+  <!-- FontAwesome Icons CDN -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <!-- CryptoJS CDN for AES-256 Encryption -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+
+  <style>
+    /* Custom Styles */
+    body {
+      font-family: 'Inter', sans-serif;
+    }
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+      background: #0f172a;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: #334155;
+      border-radius: 3px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+      background: #475569;
+    }
+    .terminal-pulse::after {
+      content: '█';
+      animation: blink 1s infinite;
+    }
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0; }
+    }
+  </style>
+</head>
+<body class="h-full flex flex-col overflow-hidden select-none">
+
+  <!-- Security Overlay Cover if Developer Console Blocked and Triggered -->
+  <div id="security-shield-modal" class="fixed inset-0 bg-slate-950/95 z-50 flex flex-col items-center justify-center p-6 hidden">
+    <div class="bg-slate-900 border border-red-500/30 p-8 rounded-2xl max-w-lg w-full text-center shadow-2xl relative overflow-hidden">
+      <div class="absolute -right-16 -top-16 w-32 h-32 bg-red-500/10 rounded-full blur-2xl"></div>
+      <div class="w-20 h-20 bg-red-500/10 border border-red-500/20 text-red-500 rounded-full flex items-center justify-center mx-auto mb-6 text-3xl">
+        <i class="fa-solid fa-shield-halved"></i>
+      </div>
+      <h3 class="text-2xl font-bold text-red-400 mb-2">Console Access Security Triggered</h3>
+      <p class="text-slate-300 text-sm mb-6 leading-relaxed">
+        To protect integrity, encryption keys, and proprietary agent routing logic, direct console/devtools access has been locked.
+      </p>
+      <div class="bg-slate-950 border border-slate-880 p-4 rounded-xl mb-6 text-left font-mono text-xs text-slate-400 space-y-2">
+        <p><span class="text-red-400">🛡️ SEC_SHIELD:</span> Console interaction detected.</p>
+        <p><span class="text-red-400">🔑 AES_STATUS:</span> Session keys encrypted and safe.</p>
+        <p><span class="text-brand-500">💡 WORKAROUND:</span> Use the integrated "System Console Logs" tab inside the application dashboard to inspect diagnostic outputs safely.</p>
+      </div>
+      <button id="dismiss-shield-btn" class="w-full bg-red-600 hover:bg-red-500 text-white font-medium py-2.5 px-4 rounded-xl transition duration-200 shadow-lg shadow-red-900/20 flex items-center justify-center gap-2">
+        <i class="fa-solid fa-unlock"></i> Resume Workspace Session
+      </button>
+    </div>
+  </div>
+
+  <!-- Header -->
+  <header class="bg-slate-900 border-b border-slate-800 px-6 py-4 flex flex-shrink-0 items-center justify-between z-40">
+    <div class="flex items-center gap-3">
+      <div class="w-10 h-10 bg-gradient-to-tr from-brand-600 to-indigo-500 rounded-xl flex items-center justify-center text-white shadow-lg shadow-brand-500/20">
+        <i class="fa-solid fa-magnifying-glass-chart text-lg"></i>
+      </div>
+      <div>
+        <h1 class="text-xl font-extrabold tracking-tight bg-gradient-to-r from-white via-slate-100 to-slate-400 bg-clip-text text-transparent flex items-center gap-2">
+          API Search Hub <span class="text-xs font-mono px-2 py-0.5 bg-brand-500/10 border border-brand-500/30 text-brand-400 rounded-full uppercase">GitHub Pages</span>
+        </h1>
+        <p class="text-xs text-slate-400 font-medium">Multimodal OCR parsing & Agent-Reach Search Engine</p>
+      </div>
+    </div>
+
+    <!-- Right Header Toolbar -->
+    <div class="flex items-center gap-4 text-xs">
+      <!-- Status Badge -->
+      <div class="flex items-center gap-2 px-3 py-1.5 bg-slate-800/80 rounded-lg border border-slate-700">
+        <span class="relative flex h-2 w-2">
+          <span id="shield-indicator-ping" class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+          <span id="shield-indicator" class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+        </span>
+        <span id="shield-status-text" class="font-mono text-slate-300 font-semibold">Console Guard Active</span>
+      </div>
+
+      <!-- BYOK Indicator -->
+      <div id="byok-badge" class="flex items-center gap-2 px-3 py-1.5 bg-slate-800/80 rounded-lg border border-slate-700 cursor-pointer hover:bg-slate-800 transition">
+        <i id="byok-badge-icon" class="fa-solid fa-key text-amber-500"></i>
+        <span id="byok-badge-text" class="font-mono text-slate-300 font-medium">BYOK: Local Only</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="flex-1 flex overflow-hidden">
+    <!-- Sidebar Navigation -->
+    <aside class="w-64 bg-slate-900/50 border-r border-slate-800/80 flex flex-col justify-between flex-shrink-0">
+      <div class="p-4 space-y-6">
+        <div class="space-y-1">
+          <label class="px-3 text-[10px] font-bold tracking-wider text-slate-500 uppercase">Navigation</label>
+          <nav class="space-y-1">
+            <button data-tab="tab-api" class="tab-btn w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition bg-brand-600 text-white shadow-lg shadow-brand-900/10">
+              <i class="fa-solid fa-wand-magic-sparkles text-brand-300 w-5"></i>
+              API Problem Solver
+            </button>
+            <button data-tab="tab-ocr" class="tab-btn w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-400 hover:text-slate-100 hover:bg-slate-800/60 transition">
+              <i class="fa-solid fa-eye text-slate-400 w-5"></i>
+              Baidu Unlimited-OCR
+            </button>
+            <button data-tab="tab-reach" class="tab-btn w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-400 hover:text-slate-100 hover:bg-slate-800/60 transition">
+              <i class="fa-solid fa-terminal text-slate-400 w-5"></i>
+              Agent-Reach Search
+            </button>
+          </nav>
+        </div>
+
+        <div class="space-y-1">
+          <label class="px-3 text-[10px] font-bold tracking-wider text-slate-500 uppercase">Settings & System</label>
+          <nav class="space-y-1">
+            <button data-tab="tab-security" class="tab-btn w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-400 hover:text-slate-100 hover:bg-slate-800/60 transition">
+              <i class="fa-solid fa-user-shield text-slate-400 w-5"></i>
+              BYOK & Security Guard
+            </button>
+            <button data-tab="tab-logs" class="tab-btn w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-400 hover:text-slate-100 hover:bg-slate-800/60 transition">
+              <i class="fa-solid fa-receipt text-slate-400 w-5"></i>
+              System Console Logs
+            </button>
+          </nav>
+        </div>
+      </div>
+
+      <!-- Quick Stats Card -->
+      <div class="p-4 m-4 bg-slate-900 border border-slate-800 rounded-xl">
+        <div class="flex items-center justify-between text-xs text-slate-400 mb-2">
+          <span>Local Library APIs</span>
+          <span class="font-bold text-brand-400 font-mono" id="local-apis-count">0</span>
+        </div>
+        <div class="w-full bg-slate-950 h-1.5 rounded-full overflow-hidden">
+          <div class="bg-brand-500 h-full w-full rounded-full"></div>
+        </div>
+        <div class="mt-3 text-[11px] text-slate-500 flex items-center gap-1.5 leading-snug">
+          <i class="fa-solid fa-circle-info"></i>
+          <span>Crypto-secured on client. Fully suitable for serverless GitHub Pages hosting.</span>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Workspace Content (Scrollable Container) -->
+    <section class="flex-1 flex flex-col overflow-hidden bg-slate-950 relative">
+
+      <!-- ================= TAB: API FINDER ================= -->
+      <div id="tab-api" class="tab-content flex-1 flex overflow-hidden">
+        <!-- Left Side: Problem Statement & AI Query -->
+        <div class="w-1/2 p-6 flex flex-col border-r border-slate-850 overflow-y-auto custom-scrollbar gap-6">
+          <div class="space-y-1">
+            <h2 class="text-lg font-bold text-slate-100 flex items-center gap-2">
+              <i class="fa-solid fa-compass text-brand-400"></i> Describe Your Automation Problem
+            </h2>
+            <p class="text-xs text-slate-400">Enter your goal, system specifications, or problem statement. Our algorithms and AI models will analyze it to suggest the perfect stack of real, free APIs.</p>
+          </div>
+
+          <div class="space-y-4">
+            <div class="relative">
+              <textarea id="problem-input" rows="8" class="w-full bg-slate-900 border border-slate-800 focus:border-brand-500 focus:ring-1 focus:ring-brand-500 rounded-xl p-4 text-sm text-slate-100 placeholder-slate-500 font-sans focus:outline-none transition custom-scrollbar" placeholder="Example: I want to build a Discord bot that reads coordinates from a message, maps them to a real address, pulls the current weather forecast, and retrieves a list of nearby libraries or parks entirely using free APIs without credit cards."></textarea>
+              <div class="absolute bottom-3 right-3 flex items-center gap-2 text-[10px] text-slate-500 bg-slate-950 px-2 py-1 rounded-md border border-slate-800">
+                <span id="char-counter">0</span> chars
+              </div>
+            </div>
+
+            <!-- Problem Statement Templates -->
+            <div class="space-y-2">
+              <span class="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Need inspiration? Click a template:</span>
+              <div class="flex flex-wrap gap-2">
+                <button onclick="applyTemplate('coordinates')" class="px-2.5 py-1.5 bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-750 text-[11px] text-slate-300 rounded-lg transition text-left">
+                  🌐 Geolocation & Weather Bot
+                </button>
+                <button onclick="applyTemplate('dogpics')" class="px-2.5 py-1.5 bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-750 text-[11px] text-slate-300 rounded-lg transition text-left">
+                  🐶 Dog Image & Breed Analyzer
+                </button>
+                <button onclick="applyTemplate('finance')" class="px-2.5 py-1.5 bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-750 text-[11px] text-slate-300 rounded-lg transition text-left">
+                  📈 Stocks & Crypto Exchange Converter
+                </button>
+                <button onclick="applyTemplate('ocr')" class="px-2.5 py-1.5 bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-750 text-[11px] text-slate-300 rounded-lg transition text-left">
+                  📄 Multi-page PDF API document parsing
+                </button>
+              </div>
+            </div>
+
+            <div class="flex gap-3">
+              <button id="search-local-btn" class="flex-1 bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 text-slate-200 font-semibold py-3 px-4 rounded-xl transition duration-200 flex items-center justify-center gap-2 text-sm">
+                <i class="fa-solid fa-filter"></i> Run Local Match
+              </button>
+              <button id="search-ai-btn" class="flex-1 bg-gradient-to-r from-brand-600 to-indigo-600 hover:from-brand-500 hover:to-indigo-500 text-white font-semibold py-3 px-4 rounded-xl transition duration-200 shadow-lg shadow-brand-500/20 flex items-center justify-center gap-2 text-sm">
+                <i class="fa-solid fa-bolt"></i> Ask OpenRouter AI (BYOK)
+              </button>
+            </div>
+          </div>
+
+          <!-- AI Architect Advice Container (Only visible when generated) -->
+          <div id="ai-response-container" class="border border-brand-500/20 bg-brand-500/5 p-5 rounded-xl space-y-3 hidden">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2 text-brand-400 font-bold text-sm">
+                <i class="fa-solid fa-robot"></i> AI System Architect Recommendations
+              </div>
+              <span id="ai-model-badge" class="font-mono text-[9px] bg-brand-500/10 border border-brand-500/20 text-brand-300 px-1.5 py-0.5 rounded">openrouter/free</span>
+            </div>
+            <div id="ai-advice-body" class="text-slate-300 text-xs leading-relaxed space-y-2 whitespace-pre-line font-sans">
+              <!-- AI generated markdown-like text goes here -->
+            </div>
+          </div>
+        </div>
+
+        <!-- Right Side: API Matches Display -->
+        <div class="w-1/2 bg-slate-900/25 flex flex-col overflow-hidden">
+          <div class="p-6 border-b border-slate-900 flex-shrink-0 flex items-center justify-between bg-slate-900/30">
+            <div>
+              <h3 class="font-bold text-slate-100 flex items-center gap-2 text-sm uppercase tracking-wider">
+                <i class="fa-solid fa-list-check text-indigo-400"></i> Relevant API Stack Matched
+              </h3>
+              <p class="text-xs text-slate-400">Offline fuzzy keywords matched with fully free, no-card API directories.</p>
+            </div>
+            <div class="flex items-center gap-2">
+              <select id="category-filter" class="bg-slate-900 border border-slate-800 text-xs text-slate-300 rounded-lg px-2.5 py-1 focus:outline-none focus:border-brand-500">
+                <option value="all">All Categories</option>
+                <option value="geo">Geo & Maps</option>
+                <option value="weather">Weather & Climate</option>
+                <option value="data">Public Data & Analytics</option>
+                <option value="media">Images & Video</option>
+                <option value="tools">Utility & Dev Tools</option>
+                <option value="finance">Finance & Crypto</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Matches Cards Lists -->
+          <div id="api-list" class="flex-1 overflow-y-auto p-6 space-y-3 custom-scrollbar">
+            <!-- Dynamically populated cards -->
+          </div>
+        </div>
+      </div>
+
+      <!-- ================= TAB: BAIDU UNLIMITED OCR ================= -->
+      <div id="tab-ocr" class="tab-content flex-1 flex flex-col p-6 overflow-y-auto custom-scrollbar hidden gap-6">
+        <div class="flex items-start justify-between">
+          <div class="space-y-1">
+            <h2 class="text-xl font-extrabold text-slate-100 flex items-center gap-2">
+              <i class="fa-solid fa-eye text-indigo-400"></i> Baidu Unlimited-OCR Multimodal Engine
+            </h2>
+            <p class="text-xs text-slate-400">Welcome the Era of One-shot Long-horizon Parsing. Upload images of API schemas, JSON tables, or system charts to extract clean structured markdown.</p>
+          </div>
+          <a href="https://github.com/baidu/Unlimited-OCR" target="_blank" class="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 rounded-lg text-xs font-mono flex items-center gap-1.5 transition">
+            <i class="fa-brands fa-github text-slate-400"></i> baidu/Unlimited-OCR
+          </a>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          <!-- Left side: File Dropzone & Image preview -->
+          <div class="lg:col-span-5 space-y-4 flex flex-col">
+            <div class="border border-dashed border-slate-800 hover:border-brand-500/50 bg-slate-900/20 rounded-2xl p-8 flex flex-col items-center justify-center text-center transition cursor-pointer relative group min-h-[220px]" id="ocr-dropzone">
+              <input type="file" id="ocr-file-input" class="absolute inset-0 opacity-0 cursor-pointer" accept="image/*">
+              <div class="w-16 h-16 bg-brand-500/5 border border-brand-500/10 text-brand-400 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-105 transition duration-200">
+                <i class="fa-solid fa-cloud-arrow-up text-2xl"></i>
+              </div>
+              <p class="text-sm text-slate-200 font-semibold mb-1">Drag and drop your API screenshot</p>
+              <p class="text-xs text-slate-400 max-w-[250px] mx-auto leading-relaxed">Supports PNG, JPG up to 10MB. Mock screenshots or documentation parameters charts are recommended.</p>
+            </div>
+
+            <!-- Image Preview Box -->
+            <div id="ocr-preview-box" class="bg-slate-900/40 border border-slate-850 p-4 rounded-2xl flex flex-col gap-3 hidden">
+              <span class="text-[10px] font-bold tracking-wider text-slate-500 uppercase flex items-center justify-between">
+                <span>Image Input Preview</span>
+                <button onclick="clearOcrPreview()" class="text-slate-400 hover:text-slate-200 transition"><i class="fa-solid fa-trash-can"></i></button>
+              </span>
+              <div class="w-full h-40 rounded-lg overflow-hidden bg-slate-950 flex items-center justify-center border border-slate-800">
+                <img id="ocr-preview-img" class="max-w-full max-h-full object-contain" src="" alt="OCR Preview">
+              </div>
+            </div>
+
+            <!-- Run Button -->
+            <button id="run-ocr-btn" class="w-full bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 text-slate-200 font-bold py-3 px-4 rounded-xl transition flex items-center justify-center gap-2 text-sm disabled:opacity-50" disabled>
+              <i class="fa-solid fa-wand-magic-sparkles"></i> Process Multimodal OCR Input
+            </button>
+          </div>
+
+          <!-- Right side: Parsed Markdown Result -->
+          <div class="lg:col-span-7 flex flex-col bg-slate-900/30 border border-slate-850 rounded-2xl overflow-hidden min-h-[350px]">
+            <div class="px-5 py-3.5 bg-slate-900 border-b border-slate-850 flex items-center justify-between">
+              <span class="text-xs font-mono font-bold text-slate-300 uppercase tracking-wide flex items-center gap-2">
+                <i class="fa-solid fa-code text-brand-400"></i> Parsed Markdown Result
+              </span>
+              <button id="copy-ocr-btn" class="text-xs font-semibold px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded border border-slate-700 flex items-center gap-1.5 transition">
+                <i class="fa-regular fa-copy"></i> Copy Markdown
+              </button>
+            </div>
+            <div class="flex-1 p-5 font-mono text-xs text-slate-300 bg-slate-950 overflow-y-auto custom-scrollbar select-text">
+              <pre id="ocr-output-markdown" class="whitespace-pre-wrap leading-relaxed text-slate-400">--- No image processed yet. Upload a screenshot of an API table or data schema, then trigger the processing sequence.
+
+💡 TIP: If you have configured your encrypted OpenRouter API Key (BYOK), the OCR module will route the image to the free multimodal model on OpenRouter to execute actual image-to-markdown text parsing, otherwise a robust matching simulator is used.</pre>
+            </div>
+          </div>
+        </div>
+
+        <!-- Python Code implementation of local Unlimited-OCR -->
+        <div class="bg-slate-900/30 border border-slate-850 rounded-2xl p-6 space-y-4">
+          <div class="flex items-center justify-between">
+            <h3 class="text-sm font-bold text-slate-200 flex items-center gap-2">
+              <i class="fa-brands fa-python text-brand-400"></i> Run Baidu Unlimited-OCR Locally (Hugging Face / vLLM Recipe)
+            </h3>
+            <span class="text-[10px] font-mono bg-indigo-500/10 text-brand-400 px-2 py-0.5 rounded border border-indigo-500/20">vLLM Inference Recipe</span>
+          </div>
+          <p class="text-xs text-slate-400 leading-relaxed">
+            The Baidu Unlimited-OCR model ships with DeepSeek-OCR gundam vision stack, capable of processing 40+ pages in a single-pass without memory crashes. Use this pre-packaged python recipe to spin up a local OCR parse server in your stack:
+          </p>
+          <div class="relative bg-slate-950 border border-slate-800 p-4 rounded-xl">
+            <button onclick="copyPythonOcrSnippet()" class="absolute top-3 right-3 text-xs bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-400 hover:text-slate-200 p-1.5 rounded transition">
+              <i class="fa-regular fa-copy"></i>
+            </button>
+            <pre class="font-mono text-xs text-slate-300 overflow-x-auto custom-scrollbar select-text leading-relaxed">
+<span class="text-slate-500"># Install prerequisites: pip install vllm transformers accelerate torch</span>
+<span class="text-indigo-400">from</span> vllm <span class="text-indigo-400">import</span> LLM, SamplingParams
+
+<span class="text-slate-500"># Initialize Unlimited-OCR engine with standard vision stack</span>
+model_id = <span class="text-emerald-400">"baidu/Unlimited-OCR"</span>
+llm = LLM(
+    model=model_id,
+    trust_remote_code=<span class="text-brand-400">True</span>,
+    max_model_len=<span class="text-brand-400">32768</span>,  <span class="text-slate-500"># 32K context window for multi-page document</span>
+    tensor_parallel_size=<span class="text-brand-400">1</span>
+)
+
+<span class="text-slate-500"># Formulate prompt for document to structured markdown generation</span>
+prompt = <span class="text-emerald-400">"Read and parse this document into highly-structured clean markdown, including all tables, codes, and APIs."</span>
+image_path = <span class="text-emerald-400">"./api_screenshot.png"</span>
+
+outputs = llm.generate({
+    <span class="text-amber-400">"prompt"</span>: <span class="text-emerald-400">f"&lt;image&gt;\n{prompt}"</span>,
+    <span class="text-amber-400">"multi_modal_data"</span>: {<span class="text-emerald-400">"image"</span>: image_path}
+})
+
+print(outputs[<span class="text-brand-400">0</span>].outputs[<span class="text-brand-400">0</span>].text)</pre>
+          </div>
+        </div>
+      </div>
+
+      <!-- ================= TAB: AGENT REACH ================= -->
+      <div id="tab-reach" class="tab-content flex-1 flex flex-col p-6 overflow-y-auto custom-scrollbar hidden gap-6">
+        <div class="flex items-start justify-between">
+          <div class="space-y-1">
+            <h2 class="text-xl font-extrabold text-slate-100 flex items-center gap-2">
+              <i class="fa-solid fa-terminal text-emerald-400"></i> Agent-Reach Search Terminal
+            </h2>
+            <p class="text-xs text-slate-400">Give your AI agent eyes to search the entire internet. Query Twitter/X, Reddit, YouTube, GitHub, Bilibili, and XiaoHongShu with zero API fees or credentials.</p>
+          </div>
+          <a href="https://github.com/Panniantong/agent-reach" target="_blank" class="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 rounded-lg text-xs font-mono flex items-center gap-1.5 transition">
+            <i class="fa-brands fa-github text-slate-400"></i> Panniantong/agent-reach
+          </a>
+        </div>
+
+        <div class="grid grid-cols-1 xl:grid-cols-12 gap-6 flex-1 min-h-[400px]">
+          <!-- Left side: Platform Selection & Router Controller -->
+          <div class="xl:col-span-4 space-y-4 flex flex-col justify-between">
+            <div class="bg-slate-900/30 border border-slate-850 p-5 rounded-2xl space-y-4">
+              <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                <i class="fa-solid fa-sliders text-emerald-400"></i> Reach Router Settings
+              </h3>
+
+              <div class="space-y-3">
+                <label class="block text-xs font-semibold text-slate-300">Target Search Platforms</label>
+                <div class="grid grid-cols-2 gap-2">
+                  <label class="flex items-center gap-2.5 px-3 py-2 bg-slate-900 border border-slate-800 rounded-xl cursor-pointer hover:bg-slate-850 transition">
+                    <input type="checkbox" checked id="platform-github" class="rounded border-slate-850 text-emerald-500 focus:ring-emerald-500 focus:ring-offset-0 bg-slate-950">
+                    <span class="text-xs text-slate-200"><i class="fa-brands fa-github w-4"></i> GitHub</span>
+                  </label>
+                  <label class="flex items-center gap-2.5 px-3 py-2 bg-slate-900 border border-slate-800 rounded-xl cursor-pointer hover:bg-slate-850 transition">
+                    <input type="checkbox" checked id="platform-reddit" class="rounded border-slate-850 text-emerald-500 focus:ring-emerald-500 focus:ring-offset-0 bg-slate-950">
+                    <span class="text-xs text-slate-200"><i class="fa-brands fa-reddit w-4 text-orange-500"></i> Reddit</span>
+                  </label>
+                  <label class="flex items-center gap-2.5 px-3 py-2 bg-slate-900 border border-slate-800 rounded-xl cursor-pointer hover:bg-slate-850 transition">
+                    <input type="checkbox" checked id="platform-twitter" class="rounded border-slate-850 text-emerald-500 focus:ring-emerald-500 focus:ring-offset-0 bg-slate-950">
+                    <span class="text-xs text-slate-200"><i class="fa-brands fa-x-twitter w-4"></i> Twitter/X</span>
+                  </label>
+                  <label class="flex items-center gap-2.5 px-3 py-2 bg-slate-900 border border-slate-800 rounded-xl cursor-pointer hover:bg-slate-850 transition">
+                    <input type="checkbox" checked id="platform-youtube" class="rounded border-slate-850 text-emerald-500 focus:ring-emerald-500 focus:ring-offset-0 bg-slate-950">
+                    <span class="text-xs text-slate-200"><i class="fa-brands fa-youtube w-4 text-red-500"></i> YouTube</span>
+                  </label>
+                </div>
+              </div>
+
+              <div class="space-y-2">
+                <label class="block text-xs font-semibold text-slate-300">Command Query</label>
+                <input type="text" id="reach-query-input" class="w-full bg-slate-950 border border-slate-800 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 rounded-xl px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:outline-none transition" placeholder="e.g. Free Geocoding API with zero rate limits">
+              </div>
+
+              <button id="run-reach-btn" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 px-4 rounded-xl transition flex items-center justify-center gap-2 text-sm shadow-lg shadow-emerald-950/20">
+                <i class="fa-solid fa-magnifying-glass"></i> Dispatch Agent-Reach Probe
+              </button>
+            </div>
+
+            <!-- Developer Integration Skill Box -->
+            <div class="bg-slate-900 border border-slate-800 p-4 rounded-2xl text-[11px] space-y-2 leading-relaxed">
+              <span class="font-bold text-slate-300 flex items-center gap-1"><i class="fa-solid fa-circle-nodes text-emerald-500"></i> Quick CLI Setup</span>
+              <p class="text-slate-400">Install and use Agent-Reach locally in your shell to empower your local autonomous script routines:</p>
+              <div class="bg-slate-950 border border-slate-850 p-2.5 rounded-lg flex items-center justify-between font-mono text-[10px] text-emerald-400">
+                <span>pip install agent-reach && agent-reach install</span>
+                <button onclick="copyCliInstall()" class="text-slate-500 hover:text-slate-300 transition"><i class="fa-regular fa-copy"></i></button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Right side: Terminal Console Panel -->
+          <div class="xl:col-span-8 flex flex-col bg-slate-950 border border-slate-800 rounded-2xl overflow-hidden font-mono text-xs shadow-2xl">
+            <!-- Terminal Header -->
+            <div class="px-4 py-2.5 bg-slate-900/80 border-b border-slate-800 flex items-center justify-between flex-shrink-0">
+              <div class="flex items-center gap-2">
+                <span class="w-3 w-3 bg-red-500 rounded-full h-3"></span>
+                <span class="w-3 w-3 bg-yellow-500 rounded-full h-3"></span>
+                <span class="w-3 w-3 bg-emerald-500 rounded-full h-3"></span>
+                <span class="text-slate-400 text-[11px] font-semibold ml-2">agent_reach_session - shell_v1</span>
+              </div>
+              <button id="clear-terminal-btn" class="text-slate-400 hover:text-slate-200 transition text-[10px] flex items-center gap-1">
+                <i class="fa-solid fa-trash-can"></i> Clear Screen
+              </button>
+            </div>
+
+            <!-- Terminal body -->
+            <div id="terminal-body" class="flex-1 p-5 overflow-y-auto space-y-3 text-slate-300 custom-scrollbar select-text min-h-[350px]">
+              <p class="text-slate-500">Agent Reach Diagnostic Terminal. Initiating socket connection...</p>
+              <p class="text-emerald-500">[INFO] agent-reach v2.4.0 is fully operational.</p>
+              <p class="text-slate-400">Type a query in the probe configuration pane on the left or type directly inside the search bar, then click "Dispatch Agent-Reach Probe".</p>
+
+              <div id="terminal-working-prompt" class="pt-2">
+                <span class="text-brand-400">user@agent-reach:~#</span> <span class="terminal-pulse"></span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ================= TAB: SECURITY & BYOK ================= -->
+      <div id="tab-security" class="tab-content flex-1 flex flex-col p-6 overflow-y-auto custom-scrollbar hidden gap-6">
+        <div class="space-y-1">
+          <h2 class="text-xl font-extrabold text-slate-100 flex items-center gap-2">
+            <i class="fa-solid fa-user-shield text-indigo-400"></i> BYOK (Bring Your Own Key) & Security Shield
+          </h2>
+          <p class="text-xs text-slate-400">Configure your local OpenRouter keys with military-grade client-side encryption and govern devtools console security parameters.</p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <!-- Left Panel: BYOK OpenRouter -->
+          <div class="bg-slate-900/30 border border-slate-850 p-6 rounded-2xl space-y-6">
+            <div class="space-y-1.5">
+              <h3 class="text-sm font-bold text-slate-200 flex items-center gap-2">
+                <i class="fa-solid fa-key text-amber-500"></i> Encrypted OpenRouter BYOK Vault
+              </h3>
+              <p class="text-xs text-slate-400 leading-relaxed">
+                OpenRouter's free-tier router lets you execute AI queries at absolutely zero cost. To keep your API key secure, we encrypt it inside your local browser storage using <strong>AES-256 (PBKDF2 derivative)</strong>. The system will never send your key anywhere except direct standard endpoint queries.
+              </p>
+            </div>
+
+            <!-- Key Input Form -->
+            <div class="space-y-4">
+              <div class="space-y-1">
+                <label class="block text-xs font-semibold text-slate-300">OpenRouter API Key</label>
+                <div class="relative">
+                  <input type="password" id="byok-key-input" class="w-full bg-slate-950 border border-slate-800 focus:border-brand-500 focus:ring-1 focus:ring-brand-500 rounded-xl pl-3 pr-10 py-2.5 text-xs text-slate-100 placeholder-slate-600 font-mono focus:outline-none transition" placeholder="sk-or-v1-...">
+                  <button onclick="toggleKeyVisibility('byok-key-input')" class="absolute top-1/2 -translate-y-1/2 right-3 text-slate-500 hover:text-slate-300 transition">
+                    <i class="fa-regular fa-eye" id="byok-key-eye"></i>
+                  </button>
+                </div>
+                <span class="text-[10px] text-slate-500 leading-none">Keys are formatted as: sk-or-v1-followed by characters. Get yours free from openrouter.ai</span>
+              </div>
+
+              <div class="space-y-1">
+                <label class="block text-xs font-semibold text-slate-300">AES-256 Decryption Password</label>
+                <div class="relative">
+                  <input type="password" id="byok-passphrase-input" class="w-full bg-slate-950 border border-slate-800 focus:border-brand-500 focus:ring-1 focus:ring-brand-500 rounded-xl pl-3 pr-10 py-2.5 text-xs text-slate-100 placeholder-slate-600 font-mono focus:outline-none transition" placeholder="Enter session passphrase to encrypt key">
+                  <button onclick="toggleKeyVisibility('byok-passphrase-input')" class="absolute top-1/2 -translate-y-1/2 right-3 text-slate-500 hover:text-slate-300 transition">
+                    <i class="fa-regular fa-eye" id="byok-passphrase-eye"></i>
+                  </button>
+                </div>
+                <span class="text-[10px] text-slate-500 leading-none">Choose a unique session password. This password decrypts your API key on runtime-demand. It is never stored.</span>
+              </div>
+
+              <!-- Save / Delete Buttons -->
+              <div class="flex gap-3">
+                <button id="save-byok-btn" class="flex-1 bg-brand-600 hover:bg-brand-500 text-white font-semibold py-2.5 px-4 rounded-xl transition duration-200 text-xs shadow-lg shadow-brand-900/20">
+                  <i class="fa-solid fa-lock"></i> AES Encrypt & Save Key
+                </button>
+                <button id="clear-byok-btn" class="flex-shrink-0 px-4 bg-slate-800 hover:bg-slate-750 text-slate-300 hover:text-red-400 rounded-xl transition border border-slate-750 text-xs flex items-center gap-1.5">
+                  <i class="fa-regular fa-trash-can"></i> Wipe Vault
+                </button>
+              </div>
+            </div>
+
+            <!-- Encryption Metadata Status Card -->
+            <div class="bg-slate-950 border border-slate-850 p-4 rounded-xl space-y-2">
+              <span class="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Key Vault Status Logs</span>
+              <div class="grid grid-cols-2 gap-3 text-xs font-mono text-slate-400">
+                <div>Encryption Type:</div>
+                <div class="text-slate-300 text-right">AES-256 (CBC mode)</div>
+                <div>Keychain Stored:</div>
+                <div class="text-right font-bold" id="vault-keychain-indicator">No</div>
+                <div>Status Flag:</div>
+                <div class="text-right text-yellow-500" id="vault-status-indicator">Unconfigured</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Right Panel: DevTools Console Blocking Settings -->
+          <div class="bg-slate-900/30 border border-slate-850 p-6 rounded-2xl space-y-6">
+            <div class="space-y-1.5">
+              <h3 class="text-sm font-bold text-slate-200 flex items-center gap-2">
+                <i class="fa-solid fa-shield-halved text-red-500"></i> DevTools Console Shield
+              </h3>
+              <p class="text-xs text-slate-400 leading-relaxed">
+                By disabling standard browser console-level operations and trapping diagnostic interfaces, we mitigate local payload inspection, token stealing, and client side vulnerability manipulation.
+              </p>
+            </div>
+
+            <div class="space-y-4">
+              <!-- Switch 1: Disable Console logs -->
+              <div class="flex items-start justify-between p-4 bg-slate-950 border border-slate-850 rounded-xl gap-4">
+                <div class="space-y-1 flex-1">
+                  <h4 class="text-xs font-bold text-slate-200">Override Browser Console Logs</h4>
+                  <p class="text-[10px] text-slate-400 leading-relaxed">Overrides `console.log`, `info`, `warn`, and `error` globally. Intercepts and redirects them to the custom app workspace panel instead.</p>
+                </div>
+                <label class="relative inline-flex items-center cursor-pointer mt-1">
+                  <input type="checkbox" checked id="toggle-console-override" class="sr-only peer">
+                  <div class="w-9 h-5 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-slate-300 after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-brand-600"></div>
+                </label>
+              </div>
+
+              <!-- Switch 2: Right Click & Hotkeys Shield -->
+              <div class="flex items-start justify-between p-4 bg-slate-950 border border-slate-850 rounded-xl gap-4">
+                <div class="space-y-1 flex-1">
+                  <h4 class="text-xs font-bold text-slate-200">Intercept Right-Click & Inspect Shortcuts</h4>
+                  <p class="text-[10px] text-slate-400 leading-relaxed">Blocks Mouse Right-Click context menus, F12 inspector launch, Ctrl+Shift+I, and typical browser inspector hotkeys.</p>
+                </div>
+                <label class="relative inline-flex items-center cursor-pointer mt-1">
+                  <input type="checkbox" checked id="toggle-hotkeys-block" class="sr-only peer">
+                  <div class="w-9 h-5 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-slate-300 after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-brand-600"></div>
+                </label>
+              </div>
+
+              <!-- Switch 3: Anti-Debugging Loop -->
+              <div class="flex items-start justify-between p-4 bg-slate-950 border border-slate-850 rounded-xl gap-4">
+                <div class="space-y-1 flex-1">
+                  <h4 class="text-xs font-bold text-slate-200">Anti-Debugging Interval Trapping</h4>
+                  <p class="text-[10px] text-slate-400 leading-relaxed">Deploys automated recursive `debugger` traps on background workers to infinitely pause execution if devtools is open, making parsing inspect commands impossible.</p>
+                </div>
+                <label class="relative inline-flex items-center cursor-pointer mt-1">
+                  <input type="checkbox" checked id="toggle-debugger-trap" class="sr-only peer">
+                  <div class="w-9 h-5 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-slate-300 after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-brand-600"></div>
+                </label>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ================= TAB: SYSTEM CONSOLE LOGS ================= -->
+      <div id="tab-logs" class="tab-content flex-1 flex flex-col p-6 overflow-hidden hidden gap-4">
+        <div class="flex-shrink-0 flex items-center justify-between">
+          <div class="space-y-1">
+            <h2 class="text-xl font-extrabold text-slate-100 flex items-center gap-2">
+              <i class="fa-solid fa-receipt text-indigo-400"></i> Integrated Workspace System Logs
+            </h2>
+            <p class="text-xs text-slate-400">Because browser DevTools are disabled, all console output is caught and securely rendered below for your convenience.</p>
+          </div>
+          <button id="clear-logs-btn" class="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-750 text-slate-300 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition">
+            <i class="fa-solid fa-eraser"></i> Clear Console Log Workspace
+          </button>
+        </div>
+
+        <div class="flex-1 bg-slate-950 border border-slate-800 rounded-2xl flex flex-col overflow-hidden font-mono text-xs">
+          <!-- Log header -->
+          <div class="px-4 py-2.5 bg-slate-900/60 border-b border-slate-800 flex items-center justify-between flex-shrink-0 text-slate-400 text-[11px] font-semibold">
+            <span>Workspace Intercepted Outputs</span>
+            <span class="text-indigo-400">AES-256 Shield Session Running</span>
+          </div>
+
+          <!-- Log stream content -->
+          <div id="log-stream-container" class="flex-1 p-5 overflow-y-auto space-y-2 text-slate-300 custom-scrollbar select-text leading-relaxed">
+            <!-- Simulated starting logs -->
+            <p class="text-slate-500">[LOGS SHIELD INIT] Intercepting all console signals. Browser logs redirected successfully.</p>
+            <p class="text-slate-400">[SYSTEM CHECK] AES-256 libraries loaded. Web interface ready.</p>
+          </div>
+        </div>
+      </div>
+
+    </section>
+  </main>
+
+  <!-- External JS logic file -->
+  <script src="app.js"></script>
+</body>
+</html>
