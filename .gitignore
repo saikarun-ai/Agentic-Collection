@@ -1,0 +1,6 @@
+node_modules/
+hackathon-finder/node_modules/
+dist/
+hackathon-finder/dist/
+.DS_Store
+*.log

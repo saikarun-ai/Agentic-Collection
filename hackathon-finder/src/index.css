@@ -1,0 +1,43 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-slate-950 text-slate-100;
+  }
+}
+
+/* Custom glow effects and scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #020617;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #1e293b;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #334155;
+}
+
+@keyframes pulse-glow {
+  0%, 100% {
+    opacity: 0.6;
+    filter: drop-shadow(0 0 15px rgba(59, 130, 246, 0.5));
+  }
+  50% {
+    opacity: 1;
+    filter: drop-shadow(0 0 30px rgba(59, 130, 246, 0.8));
+  }
+}
+
+.glow-active {
+  animation: pulse-glow 2s infinite ease-in-out;
+}
