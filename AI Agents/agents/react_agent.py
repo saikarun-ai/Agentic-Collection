@@ -7,6 +7,7 @@ class ReActAgent:
     """
     ReAct (Reasoning and Acting) Agent implementation.
     Executes tasks in a Thought -> Action -> Observation -> Thought loop.
+    Supports both multi-step tool reasoning and a simplified single-turn execution mode.
     """
     def __init__(self, name: str = "ReActAgent", tools: Optional[Dict[str, Callable]] = None, max_iterations: int = 5):
         self.name = name
@@ -38,14 +39,42 @@ class ReActAgent:
                 args = {"raw": parts[1].strip()}
         return tool_name, args
 
-    def execute(self, task: str, llm_callback: Optional[Callable[[List[Dict[str, Any]]], str]] = None) -> Dict[str, Any]:
+    def execute_simple(self, task: str, prompt_handler: Optional[Callable[[str], str]] = None) -> Dict[str, Any]:
         """
-        Execute the task using the Thought-Action-Observation loop.
+        Simplified single-turn code approach for direct agent execution without multi-step loops.
+
+        :param task: The user task or prompt.
+        :param prompt_handler: Optional simple function converting user prompt into direct response.
+        :return: Execution summary with output.
+        """
+        self.history = [{"role": "user", "content": task}]
+        if prompt_handler:
+            response = prompt_handler(task)
+        else:
+            response = f"Simple Response for task: {task}"
+
+        self.history.append({"role": "assistant", "content": response})
+        return {
+            "status": "completed",
+            "mode": "simple",
+            "output": response,
+            "iterations": 1,
+            "history": self.history
+        }
+
+    def execute(self, task: str, llm_callback: Optional[Callable[[List[Dict[str, Any]]], str]] = None, simple_mode: bool = False) -> Dict[str, Any]:
+        """
+        Execute the task using either the simplified single-turn mode or standard Thought-Action-Observation loop.
 
         :param task: The user task or goal description.
         :param llm_callback: Callable simulating the LLM decision step. Returns text containing Thought/Action or final answer.
+        :param simple_mode: If True, uses the simplified single-step approach.
         :return: Execution summary with output and step history.
         """
+        if simple_mode or self.max_iterations == 1:
+            handler = (lambda prompt: llm_callback([{"role": "user", "content": prompt}])) if llm_callback else None
+            return self.execute_simple(task, prompt_handler=handler)
+
         self.history = [{"role": "user", "content": task}]
         iterations = 0
 
@@ -82,6 +111,7 @@ class ReActAgent:
             final_answer = response.split("Final Answer:")[-1].strip() if "Final Answer:" in response else response
             return {
                 "status": "completed",
+                "mode": "standard",
                 "output": final_answer,
                 "iterations": iterations,
                 "history": self.history
@@ -89,6 +119,7 @@ class ReActAgent:
 
         return {
             "status": "max_iterations_reached",
+            "mode": "standard",
             "output": self.history[-1]["content"],
             "iterations": iterations,
             "history": self.history

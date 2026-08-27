@@ -43,6 +43,15 @@ def test_react_agent_missing_tool():
     assert "Error - Tool 'unknown_tool' not found." in agent.history[2]["content"]
 
 
+def test_react_agent_simple_execution():
+    agent = ReActAgent(name="TestSimpleReAct")
+    result = agent.execute("Simple summary task", simple_mode=True)
+    assert result["status"] == "completed"
+    assert result["mode"] == "simple"
+    assert result["iterations"] == 1
+    assert "Simple Response for task:" in result["output"]
+
+
 def test_orchestrator_agent_pipeline():
     orchestrator = OrchestratorAgent()
     worker1 = ReActAgent(name="Worker1")
