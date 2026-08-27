@@ -4,12 +4,12 @@ import re
 def count_files_in_dir(directory):
     if not os.path.exists(directory):
         return 0
-    # Count only files (not directories)
+    # Count only source files (not directories or cached files)
     count = 0
     for root, dirs, files in os.walk(directory):
+        dirs[:] = [d for d in dirs if not d.startswith('.') and d != '__pycache__']
         for f in files:
-            # Skip hidden files or README files if necessary, or count everything
-            if not f.startswith('.'):
+            if not f.startswith('.') and not f.endswith('.pyc'):
                 count += 1
     return count
 
