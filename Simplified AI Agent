@@ -1,0 +1,132 @@
+Yes — if your requirement is to break the program into simple code components such as Libraries, Authentication, Input, Prompt, API Request, Response Handling, and Output, you can structure it like this:
+
+1. Libraries
+import os
+import json
+from openai import OpenAI
+
+os → reads the API key securely from an environment variable.
+json → converts JSON between Python and the AI response.
+OpenAI → connects to OpenRouter using the OpenAI-compatible SDK.
+2. Authentication
+API_KEY = os.getenv("OPENROUTER_API_KEY")
+
+if not API_KEY:
+    raise ValueError("OpenRouter API key is missing.")
+
+
+The API key is stored outside the program instead of writing it directly into the code.
+
+3. Client Configuration
+client = OpenAI(
+    base_url="https://openrouter.ai/api/v1",
+    api_key=API_KEY
+)
+
+
+This configures the OpenAI library to communicate with OpenRouter.
+
+4. User Input
+student_name = input("Enter student name: ")
+subject = input("Enter book subject/domain: ")
+
+
+This collects the student's name and preferred subject.
+
+5. Prompt
+prompt = f"""
+Student name: {student_name}
+Book subject/domain: {subject}
+
+Recommend exactly 5 relevant books.
+
+Return ONLY valid JSON:
+
+[
+    {{
+        "title": "",
+        "author": "",
+        "domain": ""
+    }}
+]
+"""
+
+
+This tells the AI what information to generate and what format to use.
+
+6. API Request
+response = client.chat.completions.create(
+    model="openai/gpt-oss-20b:free",
+    messages=[
+        {
+            "role": "system",
+            "content": "You are a book recommendation agent."
+        },
+        {
+            "role": "user",
+            "content": prompt
+        }
+    ],
+    max_tokens=500
+)
+
+
+This sends the prompt to the AI model through OpenRouter.
+
+7. Response Handling
+content = response.choices[0].message.content.strip()
+
+books = json.loads(content)
+
+
+The AI response is extracted and converted from JSON text into a Python list.
+
+8. Output
+print(f"\nBook Recommendations for {student_name}")
+print(f"Domain: {subject}\n")
+
+print(f"{'Book Title':30} {'Author':25} {'Domain':20}")
+print("-" * 75)
+
+for book in books:
+    print(
+        f"{book['title']:30} "
+        f"{book['author']:25} "
+        f"{book['domain']:20}"
+    )
+
+
+This displays the recommendations in a table.
+
+Complete Component Structure
+Book Recommendation System
+│
+├── 1. Libraries
+│   ├── os
+│   ├── json
+│   └── openai
+│
+├── 2. Authentication
+│   └── OPENROUTER_API_KEY
+│
+├── 3. Client Configuration
+│   └── OpenRouter API
+│
+├── 4. User Input
+│   ├── Student Name
+│   └── Subject/Domain
+│
+├── 5. Prompt
+│   └── Book recommendation instructions
+│
+├── 6. API Request
+│   └── GPT-OSS-20B
+│
+├── 7. Response Handling
+│   └── JSON → Python list
+│
+└── 8. Output
+    └── Display 5 recommended books
+
+
+So, if you're making this for a project/report/presentation, these are the main code components you can label: Libraries → Authentication → Configuration → Input → Prompt → API Request → Response Processing → Output.
