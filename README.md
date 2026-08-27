@@ -71,3 +71,4 @@ To build a custom agentic system using this hub, we suggest this roadmap:
 2. **High-Quality Context**: Models perform only as well as the context provided. Use semantic chunking, metadata filters, and vector retrieval to supply the exact info required.
 3. **Self-Correction (Self-Healing)**: When a tool execution fails, do not halt execution immediately. Provide the exception message back to the LLM; often, it can fix its parameters and try again.
 4. **Determinism where possible**: Combine agentic reasoning with traditional workflow automation (deterministic pathing) to ensure critical procedures run reliably every single time.
+   Simplifed AI Agent building Approach :https://github.com/saikarun-ai/Agentic-Collection/blob/add-mcp-ai-agents-and-skills-7504283209581049550/Simplified%20AI%20Agent
