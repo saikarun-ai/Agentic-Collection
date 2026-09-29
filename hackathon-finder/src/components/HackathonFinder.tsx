@@ -1,8 +1,14 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Search, MapPin, Calendar, Award, ExternalLink, RefreshCw, SlidersHorizontal, Zap } from 'lucide-react';
-import { REAL_HACKATHONS, REAL_PROJECTS, Hackathon } from '../data/hackathonData';
+import { REAL_PROJECTS, Hackathon } from '../data/hackathonData';
 
-const AGENT_REACH_ENDPOINT = import.meta.env.VITE_AGENT_REACH_URL || 'https://devpost.com/api/hackathons';
+const AGENT_REACH_ENDPOINT = import.meta.env.VITE_AGENT_REACH_URL;
+const DATA_SOURCES = [
+  'Devpost', 'Devfolio', 'Unstop', 'MLH', 'TAIKAI', 'All Hackathons', 'Hackathon.com',
+  'Kaggle', 'Lablab.ai', 'Open Hackathons', 'DrivenData', 'AIcrowd', 'Codeforces',
+  'LeetCode', 'HackerEarth', 'HackerRank', 'CodeChef', 'Topcoder', 'AtCoder',
+  'CodinGame', 'Codewars', 'Hackaday.io', 'HeroX', 'Agorize'
+];
 
 type FinderPreferences = {
   skills: string;
@@ -41,7 +47,7 @@ export default function HackathonFinder() {
   const [selectedDifficulty, setSelectedDifficulty] = useState<string>('All');
   const [selectedType, setSelectedType] = useState<string>('All');
   const [preferences, setPreferences] = useState<FinderPreferences>({ skills: '', location: '', studentOnly: true });
-  const [hackathons, setHackathons] = useState<Hackathon[]>(REAL_HACKATHONS);
+  const [hackathons, setHackathons] = useState<Hackathon[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
@@ -50,8 +56,19 @@ export default function HackathonFinder() {
     setIsLoading(true);
     setError(null);
     try {
-      const params = new URLSearchParams({ query: preferences.skills, location: preferences.location, studentOnly: String(preferences.studentOnly) });
-      const response = await fetch(`${AGENT_REACH_ENDPOINT}?${params}`, { headers: { Accept: 'application/json' } });
+      if (!AGENT_REACH_ENDPOINT) throw new Error('Agent-Reach endpoint is not configured. Set VITE_AGENT_REACH_URL to your live Agent-Reach gateway.');
+      const response = await fetch(AGENT_REACH_ENDPOINT, {
+        method: 'POST',
+        headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          query: preferences.skills,
+          location: preferences.location,
+          studentOnly: preferences.studentOnly,
+          sources: DATA_SOURCES,
+          includeCompetitions: true,
+          onlyUpcoming: true
+        })
+      });
       if (!response.ok) throw new Error(`Source returned ${response.status}`);
       const payload: unknown = await response.json();
       const records = Array.isArray(payload) ? payload : (payload as { hackathons?: unknown[] })?.hackathons;
@@ -90,8 +107,12 @@ export default function HackathonFinder() {
           <Award className="w-6 h-6" /> Curated Hackathon Database
         </h2>
         <p className="text-slate-400 mt-2 text-sm leading-relaxed max-w-3xl">
-          Live listings are requested from the configured Agent-Reach source using your preferences. If the source is unavailable, the curated snapshot remains visible instead of blocking discovery.
+          PBSC searches live listings through Agent-Reach across the major hackathon and competition platforms below. Every result must include an official source URL; no placeholder or stale snapshot data is shown.
         </p>
+
+        <div className="mt-5 flex flex-wrap gap-1.5" aria-label="Live data sources">
+          {DATA_SOURCES.map((source) => <span key={source} className="rounded border border-slate-800 bg-slate-950 px-2 py-1 text-[10px] text-slate-400">{source}</span>)}
+        </div>
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-6">
           <input
@@ -250,7 +271,7 @@ export default function HackathonFinder() {
 
             <div className="space-y-3">
               {REAL_PROJECTS.map((project) => {
-                const hack = REAL_HACKATHONS.find(h => h.id === project.hackathonId);
+                const hack = hackathons.find((h) => h.id === project.hackathonId);
                 return (
                   <div key={project.id} className="bg-slate-950 p-3.5 rounded-lg border border-slate-800/80 space-y-2">
                     <div className="flex items-center justify-between text-[10px] font-mono">
