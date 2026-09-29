@@ -19,7 +19,7 @@ function App() {
             </div>
             <div>
               <h1 className="font-extrabold text-lg text-white tracking-tight flex items-center gap-1.5">
-                SwarmIdeate <span className="text-[10px] bg-blue-500/20 text-blue-400 px-1.5 py-0.5 rounded border border-blue-500/30">v1.0</span>
+                PBSC Hackathon Search Aggregator <span className="text-[10px] bg-blue-500/20 text-blue-400 px-1.5 py-0.5 rounded border border-blue-500/30">LIVE</span>
               </h1>
               <p className="text-[10px] text-slate-400">Agentic Hackathon Catalyst</p>
             </div>
