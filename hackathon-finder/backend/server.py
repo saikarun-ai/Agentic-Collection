@@ -20,7 +20,7 @@ SOURCES = {
 USER_AGENT = "PBSC-Hackathon-Search-Aggregator/1.0"
 
 
-def fetch(url: str, timeout: int = 15) -> bytes:
+def fetch(url: str, timeout: int = 6) -> bytes:
     request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT, "Accept": "text/xml,text/html,text/plain"})
     with urllib.request.urlopen(request, timeout=timeout) as response:
         return response.read()
@@ -37,7 +37,7 @@ def sitemap_urls(sitemap_url: str, depth: int = 0) -> list[str]:
     locations = [node.text.strip() for node in root.iter() if node.tag.rsplit("}", 1)[-1] == "loc" and node.text]
     if tag == "sitemapindex":
         result: list[str] = []
-        for location in locations[:20]:
+        for location in locations[:5]:
             result.extend(sitemap_urls(location, depth + 1))
         return result
     return locations
@@ -99,16 +99,14 @@ def collect(payload: dict) -> tuple[list[dict], str]:
         urls: list[str] = []
         for sitemap in sitemaps:
             urls.extend(sitemap_urls(sitemap))
-        candidates = [url for url in urls if any(token in url.lower() for token in ("hackathon", "competition", "challenge", "contest"))][:8]
+        # Return a live catalog first. Search and location filters are applied in the
+        # frontend so students can browse the complete current collection without
+        # accidentally turning the collector into a narrow web search.
+        candidates = [url for url in urls if any(token in url.lower() for token in ("hackathon", "competition", "challenge", "contest"))][:20]
         for url in candidates:
             record = make_record(url, source, read_page(url), len(results))
-            searchable = f"{record['name']} {record['description']} {' '.join(record['themes'])} {record['location']}".lower()
-            if query and query not in searchable:
-                continue
-            if location and location not in searchable:
-                continue
             results.append(record)
-            if len(results) >= 40:
+            if len(results) >= 100:
                 return results, "agent-reach-sitemap"
     if results:
         return results, "agent-reach-sitemap"

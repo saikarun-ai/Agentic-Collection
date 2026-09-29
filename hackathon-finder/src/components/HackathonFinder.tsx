@@ -51,6 +51,7 @@ export default function HackathonFinder() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [resultSource, setResultSource] = useState<string | null>(null);
 
   const fetchHackathons = useCallback(async () => {
     setIsLoading(true);
@@ -71,12 +72,17 @@ export default function HackathonFinder() {
       });
       if (!response.ok) throw new Error(`Source returned ${response.status}`);
       const payload: unknown = await response.json();
-      const records = Array.isArray(payload) ? payload : (payload as { hackathons?: unknown[] })?.hackathons;
+      const responseBody: { hackathons?: unknown[]; source?: string } = Array.isArray(payload)
+        ? { hackathons: payload }
+        : (payload as { hackathons?: unknown[]; source?: string });
+      const records = responseBody.hackathons;
       const liveResults = Array.isArray(records) ? records.map((item, index) => item && typeof item === 'object' ? normalizeHackathon(item as Record<string, unknown>, index) : null).filter((item): item is Hackathon => Boolean(item)) : [];
       if (!liveResults.length) throw new Error('The source returned no compatible hackathons');
       setHackathons(liveResults);
+      setResultSource(responseBody.source ?? 'live sitemap sources');
       setLastUpdated(new Date());
     } catch (fetchError) {
+      setResultSource(null);
       setError(fetchError instanceof Error ? fetchError.message : 'Unable to reach the live source');
     } finally {
       setIsLoading(false);
@@ -196,8 +202,14 @@ export default function HackathonFinder() {
         <div className="xl:col-span-8 space-y-4">
           <h3 className="font-bold text-sm text-slate-400 uppercase tracking-wider flex items-center justify-between">
             <span>Available Hackathons ({filteredHackathons.length})</span>
-            <span className="text-xs text-slate-500 italic">{lastUpdated ? `Live source · updated ${lastUpdated.toLocaleTimeString()}` : 'Live source results'}</span>
+            <span className="text-xs text-slate-500 italic">{lastUpdated ? `${resultSource ?? 'Live source'} · updated ${lastUpdated.toLocaleTimeString()}` : 'Live source results'}</span>
           </h3>
+
+          {error && (
+            <div role="alert" className="rounded-xl border border-amber-900/60 bg-amber-950/30 px-4 py-3 text-sm text-amber-200">
+              Live collection unavailable: {error}. No placeholder listings were added; check the backend and try again.
+            </div>
+          )}
 
           {filteredHackathons.length === 0 ? (
             <div className="bg-slate-900 border border-slate-800 rounded-xl p-12 text-center text-slate-500">
