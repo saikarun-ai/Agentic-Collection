@@ -10,12 +10,38 @@ import xml.etree.ElementTree as ET
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
+# Public source registry. Agent-Reach uses these sitemaps first, then the free
+# search fallback. A source is only shown in results when its page was fetched.
 SOURCES = {
     "Devpost": ["https://devpost.com/hackathons/sitemap.xml"],
-    "MLH": ["https://mlh.io/sitemap.xml"],
-    "Kaggle": ["https://www.kaggle.com/sitemap.xml"],
+    "Devfolio": ["https://devfolio.co/sitemap.xml"],
     "Unstop": ["https://unstop.com/sitemap.xml"],
+    "MLH": ["https://mlh.io/sitemap.xml"],
+    "TAIKAI": ["https://taikai.network/sitemap.xml"],
+    "Hackathon.com": ["https://www.hackathon.com/sitemap.xml"],
+    "Kaggle": ["https://www.kaggle.com/sitemap.xml"],
+    "Lablab.ai": ["https://lablab.ai/sitemap.xml"],
+    "Open Hackathons": ["https://www.openhackathons.org/sitemap.xml"],
+    "DrivenData": ["https://www.drivendata.org/sitemap.xml"],
+    "AIcrowd": ["https://www.aicrowd.com/sitemap.xml"],
     "HackerEarth": ["https://www.hackerearth.com/sitemap.xml"],
+    "HackerRank": ["https://www.hackerrank.com/sitemap.xml"],
+    "CodeChef": ["https://www.codechef.com/sitemap.xml"],
+    "Topcoder": ["https://www.topcoder.com/sitemap.xml"],
+    "AtCoder": ["https://atcoder.jp/sitemap.xml"],
+    "Codeforces": ["https://codeforces.com/sitemap.xml"],
+    "Hackaday.io": ["https://hackaday.io/sitemap.xml"],
+    "HeroX": ["https://www.herox.com/sitemap.xml"],
+    "Agorize": ["https://www.agorize.com/sitemap.xml"],
+}
+
+# MAS profile inspired by the public You-AI architecture. It keeps source
+# retrieval deterministic while making the research stages explicit and auditable.
+MAS_CONFIG = {
+    "name": "PBSC Live Research Swarm",
+    "reference": "https://you-ai-project.netlify.app",
+    "agents": ["orchestrator", "researcher", "analyst", "critic", "synthesizer"],
+    "policy": "official-source-only; student eligibility must be verified on the source page",
 }
 USER_AGENT = "PBSC-Hackathon-Search-Aggregator/1.0"
 
@@ -94,8 +120,10 @@ def free_web_search(query: str, location: str) -> list[dict]:
 def collect(payload: dict) -> tuple[list[dict], str]:
     query = str(payload.get("query", "")).lower().strip()
     location = str(payload.get("location", "")).lower().strip()
+    requested_sources = {str(source) for source in payload.get("sources", []) if isinstance(source, str)}
+    source_items = ((source, sitemaps) for source, sitemaps in SOURCES.items() if not requested_sources or source in requested_sources)
     results: list[dict] = []
-    for source, sitemaps in SOURCES.items():
+    for source, sitemaps in source_items:
         urls: list[str] = []
         for sitemap in sitemaps:
             urls.extend(sitemap_urls(sitemap))
@@ -142,7 +170,14 @@ class Handler(BaseHTTPRequestHandler):
             length = int(self.headers.get("Content-Length", "0"))
             payload = json.loads(self.rfile.read(length) or b"{}")
             results, source = collect(payload)
-            self._send(200, {"hackathons": results, "generatedAt": datetime.now(timezone.utc).isoformat(), "source": source, "sources": list(SOURCES)})
+            self._send(200, {
+                "hackathons": results,
+                "generatedAt": datetime.now(timezone.utc).isoformat(),
+                "source": source,
+                "sources": list(SOURCES),
+                "mas": MAS_CONFIG,
+                "live": True,
+            })
         except (ValueError, json.JSONDecodeError) as error:
             self._send(400, {"error": str(error)})
 
