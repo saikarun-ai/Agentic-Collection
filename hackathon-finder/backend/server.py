@@ -99,16 +99,14 @@ def collect(payload: dict) -> tuple[list[dict], str]:
         urls: list[str] = []
         for sitemap in sitemaps:
             urls.extend(sitemap_urls(sitemap))
-        candidates = [url for url in urls if any(token in url.lower() for token in ("hackathon", "competition", "challenge", "contest"))][:3]
+        # Return a live catalog first. Search and location filters are applied in the
+        # frontend so students can browse the complete current collection without
+        # accidentally turning the collector into a narrow web search.
+        candidates = [url for url in urls if any(token in url.lower() for token in ("hackathon", "competition", "challenge", "contest"))][:20]
         for url in candidates:
             record = make_record(url, source, read_page(url), len(results))
-            searchable = f"{record['name']} {record['description']} {' '.join(record['themes'])} {record['location']}".lower()
-            if query and query not in searchable:
-                continue
-            if location and location not in searchable:
-                continue
             results.append(record)
-            if len(results) >= 40:
+            if len(results) >= 100:
                 return results, "agent-reach-sitemap"
     if results:
         return results, "agent-reach-sitemap"
