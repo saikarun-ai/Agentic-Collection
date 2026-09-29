@@ -1,10 +1,9 @@
 import { spawn } from "node:child_process"
 import process from "node:process"
 
-const processes = [
-  spawn("python3", ["backend/server.py"], { stdio: "inherit", env: process.env }),
-  spawn(process.execPath, ["node_modules/vite/bin/vite.js"], { stdio: "inherit", env: process.env }),
-]
+const backend = spawn("python3", ["backend/server.py"], { stdio: "inherit", env: process.env })
+const frontend = spawn(process.execPath, ["node_modules/vite/bin/vite.js"], { stdio: "inherit", env: process.env })
+const processes = [backend, frontend]
 
 let shuttingDown = false
 
@@ -21,10 +20,15 @@ for (const child of processes) {
     shutdown(1)
   })
   child.on("exit", (code, signal) => {
-    if (!shuttingDown && code !== 0) {
-      console.error(`[dev] process exited with code ${code ?? signal}`)
-      shutdown(code ?? 1)
+    if (shuttingDown || code === 0) return
+
+    if (child === backend) {
+      console.warn(`[dev] backend did not start (${code ?? signal}); keeping Vite running because another collector may already be listening on port 8787`)
+      return
     }
+
+    console.error(`[dev] process exited with code ${code ?? signal}`)
+    shutdown(code ?? 1)
   })
 }
 
