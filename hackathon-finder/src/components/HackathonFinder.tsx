@@ -1,17 +1,77 @@
-import React, { useState } from 'react';
-import { Search, MapPin, Calendar, Award, ExternalLink, Filter, HelpCircle, ChevronRight, Zap } from 'lucide-react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { Search, MapPin, Calendar, Award, ExternalLink, RefreshCw, SlidersHorizontal, Zap } from 'lucide-react';
 import { REAL_HACKATHONS, REAL_PROJECTS, Hackathon } from '../data/hackathonData';
+
+const AGENT_REACH_ENDPOINT = import.meta.env.VITE_AGENT_REACH_URL || 'https://devpost.com/api/hackathons';
+
+type FinderPreferences = {
+  skills: string;
+  location: string;
+  studentOnly: boolean;
+};
+
+function normalizeHackathon(item: Record<string, unknown>, index: number): Hackathon | null {
+  const name = typeof item.name === 'string' ? item.name : typeof item.title === 'string' ? item.title : null;
+  const link = typeof item.link === 'string' ? item.link : typeof item.url === 'string' ? item.url : null;
+  if (!name || !link) return null;
+
+  const themes = Array.isArray(item.themes) ? item.themes.filter((theme): theme is string => typeof theme === 'string') : [];
+  const location = typeof item.location === 'string' ? item.location : typeof item.city === 'string' ? item.city : 'Online / location not listed';
+  const date = typeof item.date === 'string' ? item.date : typeof item.start_date === 'string' ? item.start_date : 'Date not listed';
+  const description = typeof item.description === 'string' ? item.description : 'Details available on the official event page.';
+
+  return {
+    id: typeof item.id === 'string' || typeof item.id === 'number' ? String(item.id) : `agent-reach-${index}`,
+    name,
+    organizer: typeof item.organizer === 'string' ? item.organizer : 'Agent-Reach source',
+    date,
+    location,
+    type: location.toLowerCase().includes('online') || location.toLowerCase().includes('virtual') ? 'Virtual' : 'In-Person',
+    prizePool: typeof item.prizePool === 'string' ? item.prizePool : 'See official site',
+    themes,
+    description,
+    link,
+    difficulty: 'Beginner Friendly'
+  };
+}
 
 export default function HackathonFinder() {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedTheme, setSelectedTheme] = useState<string>('All');
   const [selectedDifficulty, setSelectedDifficulty] = useState<string>('All');
   const [selectedType, setSelectedType] = useState<string>('All');
+  const [preferences, setPreferences] = useState<FinderPreferences>({ skills: '', location: '', studentOnly: true });
+  const [hackathons, setHackathons] = useState<Hackathon[]>(REAL_HACKATHONS);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
-  // Themes list from actual dataset
-  const allThemes = ['All', 'AI/ML', 'AI Agents', 'Web3', 'Blockchain', 'Web Dev', 'Healthcare', 'Sustainability', 'Fintech'];
+  const fetchHackathons = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const params = new URLSearchParams({ query: preferences.skills, location: preferences.location, studentOnly: String(preferences.studentOnly) });
+      const response = await fetch(`${AGENT_REACH_ENDPOINT}?${params}`, { headers: { Accept: 'application/json' } });
+      if (!response.ok) throw new Error(`Source returned ${response.status}`);
+      const payload: unknown = await response.json();
+      const records = Array.isArray(payload) ? payload : (payload as { hackathons?: unknown[] })?.hackathons;
+      const liveResults = Array.isArray(records) ? records.map((item, index) => item && typeof item === 'object' ? normalizeHackathon(item as Record<string, unknown>, index) : null).filter((item): item is Hackathon => Boolean(item)) : [];
+      if (!liveResults.length) throw new Error('The source returned no compatible hackathons');
+      setHackathons(liveResults);
+      setLastUpdated(new Date());
+    } catch (fetchError) {
+      setError(fetchError instanceof Error ? fetchError.message : 'Unable to reach the live source');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [preferences]);
 
-  const filteredHackathons = REAL_HACKATHONS.filter(hack => {
+  useEffect(() => { void fetchHackathons(); }, [fetchHackathons]);
+
+  // Themes are derived from the live response rather than a fixed list.
+  const allThemes = useMemo(() => ['All', ...Array.from(new Set(hackathons.flatMap((hack) => hack.themes))).sort()], [hackathons]);
+
+  const filteredHackathons = hackathons.filter(hack => {
     const matchesSearch = hack.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                           hack.organizer.toLowerCase().includes(searchQuery.toLowerCase()) ||
                           hack.description.toLowerCase().includes(searchQuery.toLowerCase());
@@ -30,10 +90,35 @@ export default function HackathonFinder() {
           <Award className="w-6 h-6" /> Curated Hackathon Database
         </h2>
         <p className="text-slate-400 mt-2 text-sm leading-relaxed max-w-3xl">
-          Browse real-world collegiate and professional hackathons. Our database is completely static, representing authentic and high-impact upcoming hackathons in the tech industry. No dynamic mock data is generated.
+          Live listings are requested from the configured Agent-Reach source using your preferences. If the source is unavailable, the curated snapshot remains visible instead of blocking discovery.
         </p>
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-6">
+          <input
+            type="text"
+            placeholder="Skills (e.g. React, AI)"
+            value={preferences.skills}
+            onChange={(event) => setPreferences((current) => ({ ...current, skills: event.target.value }))}
+            className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-blue-500"
+          />
+          <input
+            type="text"
+            placeholder="Location or online"
+            value={preferences.location}
+            onChange={(event) => setPreferences((current) => ({ ...current, location: event.target.value }))}
+            className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-blue-500"
+          />
+          <label className="flex items-center gap-2 rounded-lg border border-slate-800 bg-slate-950 px-3 text-sm text-slate-300">
+            <input type="checkbox" checked={preferences.studentOnly} onChange={(event) => setPreferences((current) => ({ ...current, studentOnly: event.target.checked }))} />
+            Student eligible only
+          </label>
+          <button type="button" onClick={() => void fetchHackathons()} disabled={isLoading} className="flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-500 disabled:cursor-wait disabled:opacity-60">
+            <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+            {isLoading ? 'Searching…' : 'Refresh live results'}
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-4">
           <div className="relative">
             <Search className="absolute left-3 top-3.5 w-4 h-4 text-slate-500" />
             <input
@@ -90,7 +175,7 @@ export default function HackathonFinder() {
         <div className="xl:col-span-8 space-y-4">
           <h3 className="font-bold text-sm text-slate-400 uppercase tracking-wider flex items-center justify-between">
             <span>Available Hackathons ({filteredHackathons.length})</span>
-            <span className="text-xs text-slate-500 italic">Pre-verified and real-world lists</span>
+            <span className="text-xs text-slate-500 italic">{lastUpdated ? `Live source · updated ${lastUpdated.toLocaleTimeString()}` : 'Live source results'}</span>
           </h3>
 
           {filteredHackathons.length === 0 ? (
