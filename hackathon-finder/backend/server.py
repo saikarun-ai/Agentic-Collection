@@ -7,6 +7,7 @@ import re
 import urllib.parse
 import urllib.request
 import xml.etree.ElementTree as ET
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
@@ -63,7 +64,9 @@ def sitemap_urls(sitemap_url: str, depth: int = 0) -> list[str]:
     locations = [node.text.strip() for node in root.iter() if node.tag.rsplit("}", 1)[-1] == "loc" and node.text]
     if tag == "sitemapindex":
         result: list[str] = []
-        for location in locations[:5]:
+        # Some providers publish hundreds of sitemap shards. Inspect every shard
+        # at the first level, but cap recursive expansion to keep requests bounded.
+        for location in locations[:40]:
             result.extend(sitemap_urls(location, depth + 1))
         return result
     return locations
@@ -121,21 +124,37 @@ def collect(payload: dict) -> tuple[list[dict], str]:
     query = str(payload.get("query", "")).lower().strip()
     location = str(payload.get("location", "")).lower().strip()
     requested_sources = {str(source) for source in payload.get("sources", []) if isinstance(source, str)}
-    source_items = ((source, sitemaps) for source, sitemaps in SOURCES.items() if not requested_sources or source in requested_sources)
-    results: list[dict] = []
-    for source, sitemaps in source_items:
+    # The UI includes display-only values such as "All Hackathons" and some
+    # platforms do not yet have a configured sitemap. Never let those values make
+    # the collector silently return an empty catalog.
+    selected_sources = set(SOURCES) if not requested_sources or "All Hackathons" in requested_sources else (set(SOURCES) & requested_sources)
+    if not selected_sources:
+        selected_sources = set(SOURCES)
+
+    def source_candidates(source_and_sitemaps: tuple[str, list[str]]) -> tuple[str, list[str]]:
+        source, sitemaps = source_and_sitemaps
         urls: list[str] = []
         for sitemap in sitemaps:
             urls.extend(sitemap_urls(sitemap))
-        # Return a live catalog first. Search and location filters are applied in the
-        # frontend so students can browse the complete current collection without
-        # accidentally turning the collector into a narrow web search.
-        candidates = [url for url in urls if any(token in url.lower() for token in ("hackathon", "competition", "challenge", "contest"))][:20]
-        for url in candidates:
-            record = make_record(url, source, read_page(url), len(results))
-            results.append(record)
-            if len(results) >= 100:
-                return results, "agent-reach-sitemap"
+        candidates = [url for url in dict.fromkeys(urls) if any(token in url.lower() for token in ("hackathon", "competition", "challenge", "contest"))]
+        return source, candidates[:8]
+
+    results: list[dict] = []
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        sitemap_jobs = [pool.submit(source_candidates, (source, SOURCES[source])) for source in selected_sources]
+        for job in as_completed(sitemap_jobs):
+            source, candidates = job.result()
+            page_jobs = {pool.submit(read_page, url): url for url in candidates}
+            for index, page_job in enumerate(as_completed(page_jobs)):
+                url = page_jobs[page_job]
+                page = page_job.result()
+                # A sitemap URL without readable page content is not useful to a
+                # student, so omit it instead of presenting an unverified listing.
+                if not page.strip():
+                    continue
+                results.append(make_record(url, source, page, len(results)))
+                if len(results) >= 100:
+                    return results, "agent-reach-sitemap"
     if results:
         return results, "agent-reach-sitemap"
     fallback = free_web_search(query, location)
