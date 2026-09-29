@@ -20,7 +20,7 @@ SOURCES = {
 USER_AGENT = "PBSC-Hackathon-Search-Aggregator/1.0"
 
 
-def fetch(url: str, timeout: int = 15) -> bytes:
+def fetch(url: str, timeout: int = 6) -> bytes:
     request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT, "Accept": "text/xml,text/html,text/plain"})
     with urllib.request.urlopen(request, timeout=timeout) as response:
         return response.read()
@@ -37,7 +37,7 @@ def sitemap_urls(sitemap_url: str, depth: int = 0) -> list[str]:
     locations = [node.text.strip() for node in root.iter() if node.tag.rsplit("}", 1)[-1] == "loc" and node.text]
     if tag == "sitemapindex":
         result: list[str] = []
-        for location in locations[:20]:
+        for location in locations[:5]:
             result.extend(sitemap_urls(location, depth + 1))
         return result
     return locations
@@ -99,7 +99,7 @@ def collect(payload: dict) -> tuple[list[dict], str]:
         urls: list[str] = []
         for sitemap in sitemaps:
             urls.extend(sitemap_urls(sitemap))
-        candidates = [url for url in urls if any(token in url.lower() for token in ("hackathon", "competition", "challenge", "contest"))][:8]
+        candidates = [url for url in urls if any(token in url.lower() for token in ("hackathon", "competition", "challenge", "contest"))][:3]
         for url in candidates:
             record = make_record(url, source, read_page(url), len(results))
             searchable = f"{record['name']} {record['description']} {' '.join(record['themes'])} {record['location']}".lower()
