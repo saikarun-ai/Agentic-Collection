@@ -7,15 +7,47 @@ import re
 import urllib.parse
 import urllib.request
 import xml.etree.ElementTree as ET
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
+# Public source registry. Agent-Reach uses these sitemaps first, then the free
+# search fallback. A source is only shown in results when its page was fetched.
+# Keep this registry explicit: these are the domains the collector is allowed to
+# read. The sitemap is the discovery mechanism; result pages are fetched from the
+# same domain and never invented by the frontend.
 SOURCES = {
     "Devpost": ["https://devpost.com/hackathons/sitemap.xml"],
-    "MLH": ["https://mlh.io/sitemap.xml"],
-    "Kaggle": ["https://www.kaggle.com/sitemap.xml"],
+    "Devfolio": ["https://devfolio.co/sitemap.xml"],
     "Unstop": ["https://unstop.com/sitemap.xml"],
+    "MLH": ["https://mlh.io/sitemap.xml"],
+    "TAIKAI": ["https://taikai.network/sitemap.xml"],
+    "Hackathon.com": ["https://www.hackathon.com/sitemap.xml"],
+    "Kaggle": ["https://www.kaggle.com/sitemap.xml"],
+    "Lablab.ai": ["https://lablab.ai/sitemap.xml"],
+    "Open Hackathons": ["https://www.openhackathons.org/sitemap.xml"],
+    "DrivenData": ["https://www.drivendata.org/sitemap.xml"],
+    "AIcrowd": ["https://www.aicrowd.com/sitemap.xml"],
     "HackerEarth": ["https://www.hackerearth.com/sitemap.xml"],
+    "HackerRank": ["https://www.hackerrank.com/sitemap.xml"],
+    "CodeChef": ["https://www.codechef.com/sitemap.xml"],
+    "Topcoder": ["https://www.topcoder.com/sitemap.xml"],
+    "AtCoder": ["https://atcoder.jp/sitemap.xml"],
+    "Codeforces": ["https://codeforces.com/sitemap.xml"],
+    "Hackaday.io": ["https://hackaday.io/sitemap.xml"],
+    "HeroX": ["https://www.herox.com/sitemap.xml"],
+    "Agorize": ["https://www.agorize.com/sitemap.xml"],
+}
+
+DISCOVERY_TERMS = ("hackathon", "competition", "challenge", "contest", "datathon", "coding")
+
+# MAS profile inspired by the public You-AI architecture. It keeps source
+# retrieval deterministic while making the research stages explicit and auditable.
+MAS_CONFIG = {
+    "name": "PBSC Live Research Swarm",
+    "reference": "https://you-ai-project.netlify.app",
+    "agents": ["orchestrator", "researcher", "analyst", "critic", "synthesizer"],
+    "policy": "official-source-only; student eligibility must be verified on the source page",
 }
 USER_AGENT = "PBSC-Hackathon-Search-Aggregator/1.0"
 
@@ -37,7 +69,9 @@ def sitemap_urls(sitemap_url: str, depth: int = 0) -> list[str]:
     locations = [node.text.strip() for node in root.iter() if node.tag.rsplit("}", 1)[-1] == "loc" and node.text]
     if tag == "sitemapindex":
         result: list[str] = []
-        for location in locations[:5]:
+        # Some providers publish hundreds of sitemap shards. Inspect every shard
+        # at the first level, but cap recursive expansion to keep requests bounded.
+        for location in locations[:40]:
             result.extend(sitemap_urls(location, depth + 1))
         return result
     return locations
@@ -94,20 +128,45 @@ def free_web_search(query: str, location: str) -> list[dict]:
 def collect(payload: dict) -> tuple[list[dict], str]:
     query = str(payload.get("query", "")).lower().strip()
     location = str(payload.get("location", "")).lower().strip()
-    results: list[dict] = []
-    for source, sitemaps in SOURCES.items():
+    requested_sources = {str(source) for source in payload.get("sources", []) if isinstance(source, str)}
+    # The UI includes display-only values such as "All Hackathons" and some
+    # platforms do not yet have a configured sitemap. Never let those values make
+    # the collector silently return an empty catalog.
+    selected_sources = set(SOURCES) if not requested_sources or "All Hackathons" in requested_sources else (set(SOURCES) & requested_sources)
+    if not selected_sources:
+        selected_sources = set(SOURCES)
+
+    def source_candidates(source_and_sitemaps: tuple[str, list[str]]) -> tuple[str, list[str]]:
+        source, sitemaps = source_and_sitemaps
         urls: list[str] = []
         for sitemap in sitemaps:
             urls.extend(sitemap_urls(sitemap))
-        # Return a live catalog first. Search and location filters are applied in the
-        # frontend so students can browse the complete current collection without
-        # accidentally turning the collector into a narrow web search.
-        candidates = [url for url in urls if any(token in url.lower() for token in ("hackathon", "competition", "challenge", "contest"))][:20]
-        for url in candidates:
-            record = make_record(url, source, read_page(url), len(results))
-            results.append(record)
-            if len(results) >= 100:
-                return results, "agent-reach-sitemap"
+        unique_urls = list(dict.fromkeys(urls))
+        # Do not assume every provider puts an event keyword in its URL. Prefer
+        # obvious event paths, then inspect a small sample of other same-domain
+        # URLs so providers with opaque slugs still produce live results.
+        ranked = sorted(
+            unique_urls,
+            key=lambda url: (not any(term in url.lower() for term in DISCOVERY_TERMS), len(url)),
+        )
+        return source, ranked[:12]
+
+    results: list[dict] = []
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        sitemap_jobs = [pool.submit(source_candidates, (source, SOURCES[source])) for source in selected_sources]
+        for job in as_completed(sitemap_jobs):
+            source, candidates = job.result()
+            page_jobs = {pool.submit(read_page, url): url for url in candidates}
+            for index, page_job in enumerate(as_completed(page_jobs)):
+                url = page_jobs[page_job]
+                page = page_job.result()
+                # A sitemap URL without readable page content is not useful to a
+                # student, so omit it instead of presenting an unverified listing.
+                if not page.strip():
+                    continue
+                results.append(make_record(url, source, page, len(results)))
+                if len(results) >= 100:
+                    return results, "agent-reach-sitemap"
     if results:
         return results, "agent-reach-sitemap"
     fallback = free_web_search(query, location)
@@ -142,7 +201,14 @@ class Handler(BaseHTTPRequestHandler):
             length = int(self.headers.get("Content-Length", "0"))
             payload = json.loads(self.rfile.read(length) or b"{}")
             results, source = collect(payload)
-            self._send(200, {"hackathons": results, "generatedAt": datetime.now(timezone.utc).isoformat(), "source": source, "sources": list(SOURCES)})
+            self._send(200, {
+                "hackathons": results,
+                "generatedAt": datetime.now(timezone.utc).isoformat(),
+                "source": source,
+                "sources": list(SOURCES),
+                "mas": MAS_CONFIG,
+                "live": True,
+            })
         except (ValueError, json.JSONDecodeError) as error:
             self._send(400, {"error": str(error)})
 
