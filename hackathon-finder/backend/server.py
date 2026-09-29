@@ -13,6 +13,9 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 # Public source registry. Agent-Reach uses these sitemaps first, then the free
 # search fallback. A source is only shown in results when its page was fetched.
+# Keep this registry explicit: these are the domains the collector is allowed to
+# read. The sitemap is the discovery mechanism; result pages are fetched from the
+# same domain and never invented by the frontend.
 SOURCES = {
     "Devpost": ["https://devpost.com/hackathons/sitemap.xml"],
     "Devfolio": ["https://devfolio.co/sitemap.xml"],
@@ -35,6 +38,8 @@ SOURCES = {
     "HeroX": ["https://www.herox.com/sitemap.xml"],
     "Agorize": ["https://www.agorize.com/sitemap.xml"],
 }
+
+DISCOVERY_TERMS = ("hackathon", "competition", "challenge", "contest", "datathon", "coding")
 
 # MAS profile inspired by the public You-AI architecture. It keeps source
 # retrieval deterministic while making the research stages explicit and auditable.
@@ -136,8 +141,15 @@ def collect(payload: dict) -> tuple[list[dict], str]:
         urls: list[str] = []
         for sitemap in sitemaps:
             urls.extend(sitemap_urls(sitemap))
-        candidates = [url for url in dict.fromkeys(urls) if any(token in url.lower() for token in ("hackathon", "competition", "challenge", "contest"))]
-        return source, candidates[:8]
+        unique_urls = list(dict.fromkeys(urls))
+        # Do not assume every provider puts an event keyword in its URL. Prefer
+        # obvious event paths, then inspect a small sample of other same-domain
+        # URLs so providers with opaque slugs still produce live results.
+        ranked = sorted(
+            unique_urls,
+            key=lambda url: (not any(term in url.lower() for term in DISCOVERY_TERMS), len(url)),
+        )
+        return source, ranked[:12]
 
     results: list[dict] = []
     with ThreadPoolExecutor(max_workers=8) as pool:
