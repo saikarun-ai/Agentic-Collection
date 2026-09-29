@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Search, MapPin, Calendar, Award, ExternalLink, RefreshCw, SlidersHorizontal, Zap } from 'lucide-react';
 import { REAL_PROJECTS, Hackathon } from '../data/hackathonData';
 
-const AGENT_REACH_ENDPOINT = import.meta.env.VITE_AGENT_REACH_URL;
+const AGENT_REACH_ENDPOINT = import.meta.env.VITE_AGENT_REACH_URL || '/api/hackathons';
 const DATA_SOURCES = [
   'Devpost', 'Devfolio', 'Unstop', 'MLH', 'TAIKAI', 'All Hackathons', 'Hackathon.com',
   'Kaggle', 'Lablab.ai', 'Open Hackathons', 'DrivenData', 'AIcrowd', 'Codeforces',
